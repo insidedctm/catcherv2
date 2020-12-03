@@ -63,6 +63,12 @@ def validate(tf_sess):
   print('y_pred_logits: ', y_pred_logits)
   preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
   print('pred: ', preds)
+  print('labels:', labels)
+  print('errors: ', preds - labels)
+  print('sqerrors: ', np.square(preds-labels))
+  print('sse: ', np.sum(np.square(preds-labels)))
+  print(f'error rate: {np.sum(np.square(preds-labels))/len(preds):0.2}')
+  print(f'accuracy: {(len(preds) - np.sum(np.square(preds-labels)))/len(preds):0.2}')
 
 train_op, input_node, y, logits, output = load_model()
 print(output)

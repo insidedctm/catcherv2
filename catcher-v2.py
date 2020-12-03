@@ -4,28 +4,43 @@ from tf_pose.networks import get_network
 import tensorflow as tf
 import numpy as np
 import cv2 
+import aws as aws
+import boto3
+from data import get_validation_data
 
-def _get_scaled_img(npimg):
-  target_size=(432, 368)
-  get_base_scale = lambda s, w, h: max(target_size[0] / float(h), target_size[1] / float(w)) * s
-  img_h, img_w = npimg.shape[:2]
+def main(src_bucket, src_key, output_csv):
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(name=src_bucket)
+    urls = []
+    file_names = []
+    for obj in bucket.objects.filter(Prefix=src_key, Delimiter='/'):
+        if obj.key == 'train/':
+            print('skipping {}'.format(obj.key))
+            continue
+        urls.append(aws.get_s3_url(src_bucket, obj.key))
+        file_names.append(obj.key)
 
-  # resize
-  npimg = cv2.resize(npimg, target_size, interpolation=cv2.INTER_CUBIC)
-  return [npimg], [(0.0, 0.0, 1.0, 1.0)]
+    process(urls, file_names)
 
-def get_test_input():
-  buffer = np.random.uniform(size=[10,368,432,3])
-  img_path = '/Users/robineast/projects/tf-pose-estimation/images/p1.jpg'  
-  img = cv2.imread(img_path, cv2.IMREAD_COLOR)
-  print(f"(get_test_input) img.shape={img.shape}")
-  print(f"(get_test_input) scaled img shape={_get_scaled_img(img)[0][0].shape}")  
-  buffer[0] = _get_scaled_img(img)[0][0]
-  return buffer
+def process(files_or_urls, file_names):
+    features = []
+    human_ids = []
+    frame_ids = []
+    video_names = []
+    for video, video_filename in zip(files_or_urls, file_names):
+        print('processing {} (file_name={})'.format(video, video_filename))
+        cap = cv2.VideoCapture(video)
+        frame_num = 0
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            humans_parts = extract_features_from_frame(frame, e)
+
+input_node = tf.placeholder(tf.float32, shape=(None, 368, 432, 3), name='image')
+y_node = tf.placeholder(tf.int32, shape=[None], name="y")
 
 def load_model():
-  input_node = tf.placeholder(tf.float32, shape=(10, 368, 432, 3), name='image')
-  y_node = tf.placeholder(tf.int32, shape=[None], name="y")
   net, pretrain_path, last_layer = get_network('mobilenet_thin', input_node)
   print(tf.get_default_graph().collections)
   flat1 = tf.reshape(net.get_output(), shape=[-1, 46*54*57])
@@ -39,7 +54,15 @@ def load_model():
   training_op = optimizer.minimize(loss, var_list=train_vars)
   return training_op, input_node, y_node, logits, xentropy
 
-
+def validate(tf_sess):
+  input, labels = get_validation_data()
+  y_pred_logits = tf_sess.run([logits], 
+              feed_dict= {
+                input_node: input
+              })
+  print('y_pred_logits: ', y_pred_logits)
+  preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
+  print('pred: ', preds)
 
 train_op, input_node, y, logits, output = load_model()
 print(output)
@@ -48,9 +71,6 @@ init = tf.global_variables_initializer()
 # see if we can push an input through the mode
 with tf.Session() as sess:
   sess.run(init)
-  result1, result_logits = sess.run([output, logits], feed_dict={
-                     y: np.ones([10]),
-                     input_node: get_test_input()
-                   }) 
-  print("result: ", result1)
-  print("logits: ", result_logits) 
+  
+  validate(sess)  
+

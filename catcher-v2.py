@@ -52,7 +52,7 @@ def load_model():
   train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
   optimizer = tf.train.AdamOptimizer()
   training_op = optimizer.minimize(loss, var_list=train_vars)
-  return training_op, input_node, y_node, logits, xentropy
+  return training_op, input_node, y_node, logits, xentropy, net.get_output()
 
 def validate(tf_sess):
   input, labels = get_validation_data()
@@ -70,7 +70,7 @@ def validate(tf_sess):
   print(f'error rate: {np.sum(np.square(preds-labels))/len(preds):0.2}')
   print(f'accuracy: {(len(preds) - np.sum(np.square(preds-labels)))/len(preds):0.2}')
 
-train_op, input_node, y, logits, output = load_model()
+train_op, input_node, y, logits, output, _ = load_model()
 print(output)
 
 init = tf.global_variables_initializer()

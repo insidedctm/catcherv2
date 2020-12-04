@@ -7,6 +7,7 @@ import cv2
 import aws as aws
 import boto3
 from data import get_validation_data
+from tensorflow.python.platform import gfile
 
 def main(src_bucket, src_key, output_csv):
     s3 = boto3.resource('s3')
@@ -37,14 +38,24 @@ def process(files_or_urls, file_names):
                 break
             humans_parts = extract_features_from_frame(frame, e)
 
-input_node = tf.placeholder(tf.float32, shape=(None, 368, 432, 3), name='image')
 y_node = tf.placeholder(tf.int32, shape=[None], name="y")
+tensor_image = None
 
 def load_model():
-  net, pretrain_path, last_layer = get_network('mobilenet_thin', input_node)
+  global tensor_image
+  GRAPH_PB_PATH = '/Users/robineast/projects/tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
+  with tf.Session() as sess:
+    with gfile.FastGFile(GRAPH_PB_PATH,'rb') as f:
+      graph_def = tf.GraphDef()
+      graph_def.ParseFromString(f.read())
+      sess.graph.as_default()
+      tf.import_graph_def(graph_def, name='')
   print(tf.get_default_graph().collections)
-  flat1 = tf.reshape(net.get_output(), shape=[-1, 46*54*57])
+  tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
+  tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
+  flat1 = tf.reshape(tensor_output, shape=[-1, 46*54*57])
   fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
+  print(tf.get_default_graph().collections)
   logits = tf.layers.dense(fc1, 2, name="output")
   xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_node)
   loss = tf.reduce_mean(xentropy)
@@ -52,7 +63,7 @@ def load_model():
   train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
   optimizer = tf.train.AdamOptimizer()
   training_op = optimizer.minimize(loss, var_list=train_vars)
-  return training_op, input_node, y_node, logits, xentropy, net.get_output()
+  return training_op, tensor_image, y_node, logits, xentropy, tensor_output
 
 def validate(tf_sess):
   input, labels = get_validation_data()

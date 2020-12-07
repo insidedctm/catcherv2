@@ -9,9 +9,10 @@ class MyDataFlow(DataFlow):
     frame_and_labels = exploded_manifest.explode()
 
     for item in frame_and_labels:
-      yield [(item[0], item[1]), item[2]]
+      yield [f"{item[0]}-{item[1]}", item[2]]
 
 df = MyDataFlow()
+df = BatchData(df, batch_size=50)
 df.reset_state()
 
 for datapoint in df:

@@ -44,7 +44,7 @@ tensor_image = None
 
 def load_model():
   global tensor_image
-  GRAPH_PB_PATH = '/Users/robineast/projects/tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
+  GRAPH_PB_PATH = '../tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
   with tf.Session() as sess:
     with gfile.FastGFile(GRAPH_PB_PATH,'rb') as f:
       graph_def = tf.GraphDef()

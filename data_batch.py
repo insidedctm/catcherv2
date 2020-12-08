@@ -10,7 +10,7 @@ class MyDataFlow(DataFlow):
 
   def __iter__(self):
     # load data from somewhere with Python, and yield them
-    manifest = pd.read_csv("/Users/robineast/projects/catcher/labels.csv")
+    manifest = pd.read_csv("../catcher/labels.csv")
     # temporarily remove .MOV files from processing
     manifest = manifest[manifest['filename'].apply(lambda x: not x.endswith('.MOV'))]    
     self.prefetch(manifest)

@@ -76,8 +76,6 @@ def read_validation_labels_file():
   print('<<<')
   return [package_row(row) for _,row in df.iterrows()]
 
-flatten = lambda t: [item for sublist in t for item in sublist]
-
 def get_validation_data():
   data_array = read_validation_labels_file()
   labels = [data['labels'] for data in data_array]

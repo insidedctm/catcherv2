@@ -50,11 +50,15 @@ class MyDataFlow(DataFlow):
         self.image_cache[f"{key}-{frame_cnt}"] = scaled_frame
       frame_cnt = frame_cnt + 1
 
+def get_dataflow(batch_size=50):
+  df = MyDataFlow()
+  df = BatchData(df, batch_size=batch_size)
+  df.reset_state()
+  return df
 
 if __name__ == '__main__':
-  df = MyDataFlow()
-  df = BatchData(df, batch_size=50)
-  df.reset_state()
+
+  df = get_dataflow()
 
   for datapoint in df:
     print(datapoint[0], datapoint[1])

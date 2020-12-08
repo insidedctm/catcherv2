@@ -8,6 +8,7 @@ import aws as aws
 import boto3
 from data import get_validation_data
 from tensorflow.python.platform import gfile
+from data_batch import get_dataflow
 
 def main(src_bucket, src_key, output_csv):
     s3 = boto3.resource('s3')
@@ -63,7 +64,7 @@ def load_model():
   train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
   optimizer = tf.train.AdamOptimizer()
   training_op = optimizer.minimize(loss, var_list=train_vars)
-  return training_op, tensor_image, y_node, logits, xentropy, tensor_output
+  return training_op, tensor_image, y_node, logits, xentropy, tensor_output, loss
 
 def validate(tf_sess):
   input, labels = get_validation_data()
@@ -81,13 +82,18 @@ def validate(tf_sess):
   print(f'error rate: {np.sum(np.square(preds-labels))/len(preds):0.2}')
   print(f'accuracy: {(len(preds) - np.sum(np.square(preds-labels)))/len(preds):0.2}')
 
-train_op, input_node, y, logits, output, _ = load_model()
+train_op, input_node, y, logits, output, _, loss = load_model()
 print(output)
 
 init = tf.global_variables_initializer()
 # see if we can push an input through the mode
 with tf.Session() as sess:
   sess.run(init)
-  
+
+  df = get_dataflow(batch_size=100)
+
+  for input, labels in df: 
+    _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
+    print(loss_val)
   validate(sess)  
 

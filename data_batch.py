@@ -22,7 +22,7 @@ class MyDataFlow(DataFlow):
       return expand
 
     exploded_manifest = manifest.apply(expand_row, axis=1)
-    frame_and_labels = exploded_manifest.explode()
+    frame_and_labels = exploded_manifest.explode().sample(frac=1)
 
     for item in frame_and_labels:
       cache_key = f"{item[0]}-{item[1]}"

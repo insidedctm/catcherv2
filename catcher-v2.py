@@ -67,13 +67,23 @@ def load_model():
   return training_op, tensor_image, y_node, logits, xentropy, tensor_output, loss
 
 def validate(tf_sess):
-  input, labels = get_validation_data()
-  y_pred_logits = tf_sess.run([logits], 
-              feed_dict= {
-                input_node: input
-              })
-  print('y_pred_logits: ', y_pred_logits)
-  preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
+  df = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
+  all_labels = []
+  all_preds = []
+  for input, labels in df:
+    all_labels.extend(labels) 
+    y_pred_logits = tf_sess.run([logits], 
+                feed_dict= {
+                  input_node: input
+                })
+    preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
+    all_preds.extend(preds)
+   
+  print_summary(all_labels, all_preds)
+
+def print_summary(labels, preds):
+  labels = np.array(labels)
+  preds  = np.array(preds)
   print('pred: ', preds)
   print('labels:', labels)
   print('errors: ', preds - labels)
@@ -90,7 +100,7 @@ init = tf.global_variables_initializer()
 with tf.Session() as sess:
   sess.run(init)
 
-  df = get_dataflow(batch_size=100)
+  df = get_dataflow("../catcher/labels.csv", batch_size=100)
 
   for input, labels in df: 
     _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})

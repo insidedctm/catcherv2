@@ -9,6 +9,13 @@ import boto3
 from data import get_validation_data
 from tensorflow.python.platform import gfile
 from data_batch import get_dataflow
+import argparse
+
+def parse_args():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--batch_size', default=200, help='')
+  parser.add_argument('--num_epochs', default=1, help='')
+  return parser.parse_args()
 
 def main(src_bucket, src_key, output_csv):
     s3 = boto3.resource('s3')
@@ -92,18 +99,23 @@ def print_summary(labels, preds):
   print(f'error rate: {np.sum(np.square(preds-labels))/len(preds):0.2}')
   print(f'accuracy: {(len(preds) - np.sum(np.square(preds-labels)))/len(preds):0.2}')
 
-train_op, input_node, y, logits, output, _, loss = load_model()
-print(output)
 
-init = tf.global_variables_initializer()
-# see if we can push an input through the mode
-with tf.Session() as sess:
-  sess.run(init)
+if __name__ == '__main__':
+  args = parse_args()
+  train_op, input_node, y, logits, output, _, loss = load_model()
+  print(output)
+  
+  init = tf.global_variables_initializer()
+  # see if we can push an input through the mode
+  with tf.Session() as sess:
+    sess.run(init)
+  
 
-  df = get_dataflow("../catcher/labels.csv", batch_size=100)
-
-  for input, labels in df: 
-    _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
-    print(loss_val)
-  validate(sess)  
-
+    for epoch in range(args.num_epochs):
+      df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
+  
+      for input, labels in df: 
+        _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
+        print(loss_val)
+      validate(sess)  
+  

@@ -13,8 +13,8 @@ import argparse
 
 def parse_args():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--batch_size', default=200, help='')
-  parser.add_argument('--num_epochs', default=1, help='')
+  parser.add_argument('--batch_size', default=200, help='', type=int)
+  parser.add_argument('--num_epochs', default=1, help='', type=int)
   return parser.parse_args()
 
 def main(src_bucket, src_key, output_csv):

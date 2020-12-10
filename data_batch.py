@@ -16,8 +16,6 @@ class MyDataFlow(DataFlow):
   def __iter__(self):
     # load data from somewhere with Python, and yield them
     manifest = pd.read_csv(self.labels_path)
-    # temporarily remove .MOV files from processing
-    manifest = manifest[manifest['filename'].apply(lambda x: not x.endswith('.MOV'))]    
     self.prefetch(manifest)
     
     def expand_row(row):

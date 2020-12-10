@@ -3,6 +3,8 @@ from tensorpack.dataflow import DataFromGenerator, BatchData, DataFlow
 from data import _get_scaled_img, get_frame_nos
 from common import get_s3_url
 import cv2
+import boto3
+from os.path import isfile
 
 class MyDataFlow(DataFlow):
   def __init__(self, labels_path="../catcher/labels.csv", prefix="train/", shuffle=True):
@@ -43,8 +45,11 @@ class MyDataFlow(DataFlow):
 
   def add_images(self, key, frame_nos):
     bucket = 'catcher-videos'
-    url = get_s3_url(bucket, f"{self.prefix}{key}")
-    cap = cv2.VideoCapture(url)
+    target_dir = 'raw/'
+    #url = get_s3_url(bucket, f"{self.prefix}{key}")
+    filename = self.get_download_path(target_dir, key)
+    self.check_and_download_s3_file(bucket, f"{self.prefix}{key}", filename)
+    cap = cv2.VideoCapture(filename)
     frame_cnt = 0
     while True:
       ret, frame = cap.read()
@@ -54,6 +59,19 @@ class MyDataFlow(DataFlow):
         scaled_frame = _get_scaled_img(frame)[0][0]
         self.image_cache[f"{key}-{frame_cnt}"] = scaled_frame
       frame_cnt = frame_cnt + 1
+
+  def check_and_download_s3_file(self, bucket, key, filename):
+    if isfile(filename):
+      return
+    print(f'{filename} is not cached, download ...')
+    s3 = boto3.client('s3')
+    s3.download_file(bucket, key, filename)
+    
+  def get_download_path(self, directory, filename):
+    if directory.endswith('/'):
+      return f'{directory}{filename}'
+    else:
+      return f'{directory}/{filename}'
 
 def get_dataflow(labels_path, batch_size=50, prefix="train/", shuffle=True):
   df = MyDataFlow(labels_path, prefix, shuffle)

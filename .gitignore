@@ -1,3 +1,6 @@
+__pycache__/
+
+
 tf_logs/**/events*
 raw/*.mp4
 raw/*.mov

@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: 2010-09-09
+Mappings:
+  RegionMap:
+   eu-west-1:
+      AMI: ami-09ba01d9b2eb740ba
+Resources:
+  TrainingInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            setup:
+              command: /usr/local/bin/sftpgatewaysetup
+    Properties:
+      IamInstanceProfile: !Ref RootInstanceProfile
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref AWS::Region
+        - AMI
+      InstanceType: !Ref EC2Type
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref DiskVolumeSize
+            VolumeType: gp2
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !Ref TrainingSG
+      SubnetId: !Ref SubnetID
+      Tags:
+        - Key: Name
+          Value: CatcherPoller
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init --stack ${AWS::StackName} --resource TrainingInstance \n --region ${AWS::Region}
+  RootInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref S3WritableRole
+  S3WritableRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+  RolePolicies:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - TrainingInstance
+    Properties:
+      PolicyName: TrainingInstancePolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: 's3:*'
+            Resource: '*'
+          - Effect: Allow
+            Action: 
+              - 'ecr:GetAuthorizationToken'
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:GetRepositoryPolicy"
+              - "ecr:DescribeRepositories"
+              - "ecr:ListImages"
+              - "ecr:DescribeImages"
+              - "ecr:BatchGetImage"
+              - "ecr:GetLifecyclePolicy"
+              - "ecr:GetLifecyclePolicyPreview"
+              - "ecr:ListTagsForResource"
+              - "ecr:DescribeImageScanFindings"
+            Resource: '*'
+          - Effect: Allow
+            Action: 
+              - "dynamodb:BatchWriteItem"
+              - "dynamodb:UpdateTimeToLive"
+              - "dynamodb:PutItem"
+              - "dynamodb:DeleteItem"
+              - "dynamodb:RestoreTableToPointInTime"
+              - "dynamodb:CreateTableReplica"
+              - "dynamodb:Scan"
+              - "dynamodb:UpdateContributorInsights"
+              - "dynamodb:UpdateGlobalTable"
+              - "dynamodb:UpdateItem"
+              - "dynamodb:CreateBackup"
+              - "dynamodb:DeleteTableReplica"
+              - "dynamodb:DeleteTable"
+              - "dynamodb:UpdateTableReplicaAutoScaling"
+              - "dynamodb:UpdateContinuousBackups"
+              - "dynamodb:CreateTable"
+              - "dynamodb:UpdateGlobalTableSettings"
+              - "dynamodb:RestoreTableFromBackup"
+              - "dynamodb:CreateGlobalTable"
+              - "dynamodb:DeleteBackup"
+              - "dynamodb:UpdateTable"
+            Resource: 
+              - "arn:aws:dynamodb:eu-west-1:571043958073:table/vodAsset-s4sptv63ibehtogsaenegjcoza-dev"
+              - "arn:aws:dynamodb:eu-west-1:571043958073:table/Incident-kkjobjwoq5emvhz5j2ioq55eba-dev"
+              - "arn:aws:dynamodb:eu-west-1:571043958073:table/Stream-kkjobjwoq5emvhz5j2ioq55eba-dev"
+          - Effect: Allow
+            Action:
+              - "kinesisvideo:Describe*"
+              - "kinesisvideo:Get*"
+              - "kinesisvideo:List*"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "dynamodb:PurchaseReservedCapacityOfferings"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "s3:ListBucket"
+            Resource:
+              - "arn:aws:s3:::unicornflix-dev-input-7s49bmnz"
+          - Effect: Allow
+            Action: 
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:DeleteObject"
+            Resource: 
+              - "arn:aws:s3:::unicornflix-dev-input-7s49bmnz/*"
+      Roles:
+        - !Ref S3WritableRole
+  TrainingSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Catcher V2 Training Security Group
+      VpcId: !Ref VPCIdName
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 6006
+          ToPort: 6006
+          CidrIp: 0.0.0.0/0
+  IPAddress:
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref TrainingInstance
+    Type: AWS::EC2::EIP
+Parameters:
+  EC2Type:
+    Description: Catcher V2 Training Instance Type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - g4dn.xlarge
+      - p2.xlarge
+      - p3.2xlarge
+  KeyPair:
+    Description: EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Existing EC2 KeyPair.
+  DiskVolumeSize:
+    Default: 32
+    Description: Disk volume size in GB. Must be at least 32.
+    ConstraintDescription: Must be a number greater or equal to 32
+    MinValue: 32
+    Type: Number
+  VPCIdName:
+    Description: Select the VPC to launch the Catcher V2 training stack into
+    Type: AWS::EC2::VPC::Id
+  SubnetID:
+    Description: Subnet ID
+    Type: AWS::EC2::Subnet::Id
+Outputs:
+  ElasticIP:
+    Value: !Ref IPAddress
+    Description: Elastic IP address

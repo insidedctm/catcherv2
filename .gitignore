@@ -1,1 +1,4 @@
 tf_logs/**/events*
+raw/*.mp4
+raw/*.mov
+raw/*.MOV

@@ -10,6 +10,12 @@ from data import get_validation_data
 from tensorflow.python.platform import gfile
 from data_batch import get_dataflow
 import argparse
+from datetime import datetime
+
+# tensorboard log directory name setup
+now = datetime.utcnow().strftime("%Y%m%d%H%M%S") 
+root_logdir = "tf_logs"
+logdir = "{}/run-{}/".format(root_logdir, now)
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -71,7 +77,11 @@ def load_model():
   train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
   optimizer = tf.train.AdamOptimizer()
   training_op = optimizer.minimize(loss, var_list=train_vars)
-  return training_op, tensor_image, y_node, logits, xentropy, tensor_output, loss
+
+  loss_summary = tf.summary.scalar('Training loss', loss)
+  file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())
+
+  return training_op, tensor_image, y_node, logits, xentropy, tensor_output, loss, loss_summary, file_writer
 
 def validate(tf_sess):
   df = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
@@ -102,7 +112,7 @@ def print_summary(labels, preds):
 
 if __name__ == '__main__':
   args = parse_args()
-  train_op, input_node, y, logits, output, _, loss = load_model()
+  train_op, input_node, y, logits, output, _, loss, loss_summary, file_writer = load_model()
   print(output)
   
   init = tf.global_variables_initializer()
@@ -110,12 +120,16 @@ if __name__ == '__main__':
   with tf.Session() as sess:
     sess.run(init)
   
-
+    batch_index = 0
     for epoch in range(args.num_epochs):
       df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
   
       for input, labels in df: 
+        if batch_index % 10 == 0:
+          summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
+          file_writer.add_summary(summary_str, batch_index)
         _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
         print(loss_val)
+        batch_index = batch_index + 1
       validate(sess)  
   

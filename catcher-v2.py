@@ -23,35 +23,6 @@ def parse_args():
   parser.add_argument('--num_epochs', default=1, help='', type=int)
   return parser.parse_args()
 
-def main(src_bucket, src_key, output_csv):
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(name=src_bucket)
-    urls = []
-    file_names = []
-    for obj in bucket.objects.filter(Prefix=src_key, Delimiter='/'):
-        if obj.key == 'train/':
-            print('skipping {}'.format(obj.key))
-            continue
-        urls.append(aws.get_s3_url(src_bucket, obj.key))
-        file_names.append(obj.key)
-
-    process(urls, file_names)
-
-def process(files_or_urls, file_names):
-    features = []
-    human_ids = []
-    frame_ids = []
-    video_names = []
-    for video, video_filename in zip(files_or_urls, file_names):
-        print('processing {} (file_name={})'.format(video, video_filename))
-        cap = cv2.VideoCapture(video)
-        frame_num = 0
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            humans_parts = extract_features_from_frame(frame, e)
-
 y_node = tf.placeholder(tf.int32, shape=[None], name="y")
 tensor_image = None
 
@@ -64,12 +35,10 @@ def load_model():
       graph_def.ParseFromString(f.read())
       sess.graph.as_default()
       tf.import_graph_def(graph_def, name='')
-  print(tf.get_default_graph().collections)
   tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
   tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
   flat1 = tf.reshape(tensor_output, shape=[-1, 46*54*57])
   fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
-  print(tf.get_default_graph().collections)
   logits = tf.layers.dense(fc1, 2, name="output")
   xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_node)
   loss = tf.reduce_mean(xentropy)
@@ -101,12 +70,6 @@ def validate(tf_sess):
 def print_summary(labels, preds):
   labels = np.array(labels)
   preds  = np.array(preds)
-  print('pred: ', preds)
-  print('labels:', labels)
-  print('errors: ', preds - labels)
-  print('sqerrors: ', np.square(preds-labels))
-  print('sse: ', np.sum(np.square(preds-labels)))
-  print(f'error rate: {np.sum(np.square(preds-labels))/len(preds):0.2}')
   print(f'accuracy: {(len(preds) - np.sum(np.square(preds-labels)))/len(preds):0.2}')
 
 
@@ -121,15 +84,14 @@ if __name__ == '__main__':
     sess.run(init)
   
     batch_index = 0
+    df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
     for epoch in range(args.num_epochs):
-      df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
-  
+ 
       for input, labels in df: 
         if batch_index % 10 == 0:
           summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
           file_writer.add_summary(summary_str, batch_index)
         _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
-        print(loss_val)
         batch_index = batch_index + 1
       validate(sess)  
   

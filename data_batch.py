@@ -39,7 +39,6 @@ class MyDataFlow(DataFlow):
 
   def prefetch(self, manifest):
     for ix, item in manifest.iterrows():
-      print(f"fetching {item}")
       frame_nos = get_frame_nos(item)
       self.add_images(item['filename'], frame_nos)
 
@@ -81,12 +80,14 @@ def get_dataflow(labels_path, batch_size=50, prefix="train/", shuffle=True):
 
 if __name__ == '__main__':
 
-  df = get_dataflow("../catcher/labels.csv")
+  train = get_dataflow("../catcher/labels.csv")
 
-  for datapoint in df:
+  for datapoint in train:
     print(datapoint[0], datapoint[1])
 
-  df = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
+  valid = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
 
-  for datapoint in df:
+  for datapoint in valid:
     print(datapoint[0], datapoint[1])
+
+

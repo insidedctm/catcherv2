@@ -82,7 +82,10 @@ if __name__ == '__main__':
   # validation summary setup
   valid_accuracy_placeholder = tf.placeholder(dtype=tf.float32)
   valid_accuracy = tf.summary.scalar('validation_accuracy', valid_accuracy_placeholder)
-  
+ 
+  # image summary setup
+  img_summ_op = tf.summary.image('input_images', input_node, max_outputs=4)
+ 
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode
   with tf.Session() as sess:
@@ -94,11 +97,16 @@ if __name__ == '__main__':
  
       for input, labels in df: 
         if batch_index % 10 == 0:
+          summary_str = sess.run(img_summ_op, feed_dict={tensor_image: input})
+          file_writer.add_summary(summary_str)
           summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
           file_writer.add_summary(summary_str, batch_index)
         _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
         batch_index = batch_index + 1
       summary_stats = validate(sess)  
       print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')
+
+      # write out summary info
       summary_str = valid_accuracy.eval(feed_dict={valid_accuracy_placeholder: summary_stats['validation_accuracy']})
       file_writer.add_summary(summary_str, batch_index)
+

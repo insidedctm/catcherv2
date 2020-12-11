@@ -63,6 +63,11 @@ def validate(tf_sess):
                 })
     preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
     all_preds.extend(preds)
+
+    fall_input = input[labels == 1]
+    for op in [img_summ_op, heatmap_summ_op, paf_summ_op]:
+      summary_str = sess.run(op, feed_dict={tensor_image: fall_input})
+      file_writer.add_summary(summary_str)
    
   summary_stats = get_summary_stats(all_labels, all_preds)
   
@@ -76,7 +81,7 @@ def get_summary_stats(labels, preds):
 
 if __name__ == '__main__':
   args = parse_args()
-  train_op, input_node, y, logits, output, _, loss, loss_summary, file_writer = load_model()
+  train_op, input_node, y, logits, output, tensor_output, loss, loss_summary, file_writer = load_model()
   print(output)
 
   # validation summary setup
@@ -85,6 +90,8 @@ if __name__ == '__main__':
  
   # image summary setup
   img_summ_op = tf.summary.image('input_images', input_node, max_outputs=4)
+  heatmap_summ_op = tf.summary.image('hmap_images', tf.expand_dims(tensor_output[:,:,:,1], axis=3), max_outputs=4)
+  paf_summ_op = tf.summary.image('paf_images', tf.expand_dims(tensor_output[:,:,:,20], axis=3), max_outputs=4)
  
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode
@@ -96,9 +103,7 @@ if __name__ == '__main__':
     for epoch in range(args.num_epochs):
  
       for input, labels in df: 
-        if batch_index % 10 == 0:
-          summary_str = sess.run(img_summ_op, feed_dict={tensor_image: input})
-          file_writer.add_summary(summary_str)
+        if batch_index % 2 == 0:
           summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
           file_writer.add_summary(summary_str, batch_index)
         _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})

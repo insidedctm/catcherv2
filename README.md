@@ -45,5 +45,5 @@ Amend `num_epochs` and `batch_size` appropriately. NB 200 seems a reasonable val
 
 ### Running Tensorboard
 ```bash
-tensorboard --logdir tf_logs/ > /dev/null 2>&1
+tensorboard --logdir tf_logs/ > /dev/null 2>&1 &
 ```

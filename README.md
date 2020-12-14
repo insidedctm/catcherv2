@@ -21,7 +21,7 @@ Then run the following commands
 ```bash
 aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 571043958073.dkr.ecr.eu-west-1.amazonaws.com
 docker pull 571043958073.dkr.ecr.eu-west-1.amazonaws.com/catcher-file-upload
-docker run --gpus all -it --p 6006:6006 --entrypoint /bin/bash 571043958073.dkr.ecr.eu-west-1.amazonaws.com/catcher-file-upload:latest
+docker run --gpus all -it -p 6006:6006 --entrypoint /bin/bash 571043958073.dkr.ecr.eu-west-1.amazonaws.com/catcher-file-upload:latest
 ```
 
 This takes you into the docker container in the `/projects/catcher` directory. Run the following commands to finalise setup:

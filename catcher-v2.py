@@ -64,9 +64,11 @@ def validate(tf_sess):
     preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
     all_preds.extend(preds)
 
-    fall_input = input[labels == 1]
+    print(type(labels))
+    print(type(preds))
+    false_negative_input = input[labels == 1]
     for op in [img_summ_op, heatmap_summ_op, paf_summ_op]:
-      summary_str = sess.run(op, feed_dict={tensor_image: fall_input})
+      summary_str = sess.run(op, feed_dict={tensor_image: false_negative_input})
       file_writer.add_summary(summary_str)
    
   summary_stats = get_summary_stats(all_labels, all_preds)
@@ -103,7 +105,7 @@ if __name__ == '__main__':
     for epoch in range(args.num_epochs):
  
       for input, labels in df: 
-        if batch_index % 2 == 0:
+        if batch_index % 100 == 0:
           summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
           file_writer.add_summary(summary_str, batch_index)
         _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})

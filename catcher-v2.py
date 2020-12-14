@@ -6,15 +6,9 @@ import numpy as np
 import cv2 
 import aws as aws
 import boto3
-from tensorflow.python.platform import gfile
 from data_batch import get_dataflow
 import argparse
-from datetime import datetime
-
-# tensorboard log directory name setup
-now = datetime.utcnow().strftime("%Y%m%d%H%M%S") 
-root_logdir = "tf_logs"
-logdir = "{}/run-{}/".format(root_logdir, now)
+from NaiveTransferLearningModel import NaiveTransferLearningModel, SummaryWriter
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -22,44 +16,15 @@ def parse_args():
   parser.add_argument('--num_epochs', default=1, help='', type=int)
   return parser.parse_args()
 
-y_node = tf.placeholder(tf.int32, shape=[None], name="y")
-tensor_image = None
-
-def load_model():
-  global tensor_image
-  GRAPH_PB_PATH = '../tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
-  with tf.Session() as sess:
-    with gfile.FastGFile(GRAPH_PB_PATH,'rb') as f:
-      graph_def = tf.GraphDef()
-      graph_def.ParseFromString(f.read())
-      sess.graph.as_default()
-      tf.import_graph_def(graph_def, name='')
-  tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
-  tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
-  flat1 = tf.reshape(tensor_output, shape=[-1, 46*54*57])
-  fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
-  logits = tf.layers.dense(fc1, 2, name="output")
-  xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_node)
-  loss = tf.reduce_mean(xentropy)
-  train_vars = tf.get_default_graph().get_collection('trainable_variables', scope='fc1')
-  train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
-  optimizer = tf.train.AdamOptimizer()
-  training_op = optimizer.minimize(loss, var_list=train_vars)
-
-  loss_summary = tf.summary.scalar('Training_loss', loss)
-  file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())
-
-  return training_op, tensor_image, y_node, logits, xentropy, tensor_output, loss, loss_summary, file_writer
-
 def validate(tf_sess):
   df = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
   all_labels = []
   all_preds = []
   for input, labels in df:
     all_labels.extend(labels) 
-    y_pred_logits = tf_sess.run([logits], 
+    y_pred_logits = tf_sess.run([model.logits], 
                 feed_dict= {
-                  input_node: input
+                  model.tensor_image: input
                 })
     preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
     all_preds.extend(preds)
@@ -68,7 +33,7 @@ def validate(tf_sess):
     
     false_negative_input = input[cond]
     for op in [img_summ_op, heatmap_summ_op, paf_summ_op]:
-      summary_str = sess.run(op, feed_dict={tensor_image: false_negative_input})
+      summary_str = sess.run(op, feed_dict={model.tensor_image: false_negative_input})
       file_writer.add_summary(summary_str)
    
   summary_stats = get_summary_stats(all_labels, all_preds)
@@ -83,17 +48,23 @@ def get_summary_stats(labels, preds):
 
 if __name__ == '__main__':
   args = parse_args()
-  train_op, input_node, y, logits, output, tensor_output, loss, loss_summary, file_writer = load_model()
-  print(output)
+
+  # construct and load model, prepare for training
+  model = NaiveTransferLearningModel()
+  model.load_model()
+  train_op = model.get_training_op()
+
+  # setup summary
+  file_writer = SummaryWriter.get_file_writer()
 
   # validation summary setup
   valid_accuracy_placeholder = tf.placeholder(dtype=tf.float32)
   valid_accuracy = tf.summary.scalar('validation_accuracy', valid_accuracy_placeholder)
  
   # image summary setup
-  img_summ_op = tf.summary.image('input_images', input_node, max_outputs=4)
-  heatmap_summ_op = tf.summary.image('hmap_images', tf.expand_dims(tensor_output[:,:,:,1], axis=3), max_outputs=4)
-  paf_summ_op = tf.summary.image('paf_images', tf.expand_dims(tensor_output[:,:,:,20], axis=3), max_outputs=4)
+  img_summ_op = tf.summary.image('input_images', model.tensor_image, max_outputs=4)
+  heatmap_summ_op = tf.summary.image('hmap_images', tf.expand_dims(model.tensor_output[:,:,:,1], axis=3), max_outputs=4)
+  paf_summ_op = tf.summary.image('paf_images', tf.expand_dims(model.tensor_output[:,:,:,20], axis=3), max_outputs=4)
  
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode
@@ -106,9 +77,9 @@ if __name__ == '__main__':
  
       for input, labels in df: 
         if batch_index % 100 == 0:
-          summary_str = loss_summary.eval(feed_dict={y_node: labels, tensor_image: input}) 
+          summary_str = model.loss_summary.eval(feed_dict={model.y_node: labels, model.tensor_image: input}) 
           file_writer.add_summary(summary_str, batch_index)
-        _, loss_val = sess.run([train_op, loss], feed_dict={y_node: labels, tensor_image: input})
+        _, loss_val = sess.run([train_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
         batch_index = batch_index + 1
       summary_stats = validate(sess)  
       print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')
@@ -116,4 +87,4 @@ if __name__ == '__main__':
       # write out summary info
       summary_str = valid_accuracy.eval(feed_dict={valid_accuracy_placeholder: summary_stats['validation_accuracy']})
       file_writer.add_summary(summary_str, batch_index)
-
+  file_writer.close()

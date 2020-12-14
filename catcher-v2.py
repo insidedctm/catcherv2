@@ -64,9 +64,9 @@ def validate(tf_sess):
     preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
     all_preds.extend(preds)
 
-    print(type(labels))
-    print(type(preds))
-    false_negative_input = input[labels == 1]
+    cond = np.logical_and(labels == 1, np.array(preds) == 0)
+    
+    false_negative_input = input[cond]
     for op in [img_summ_op, heatmap_summ_op, paf_summ_op]:
       summary_str = sess.run(op, feed_dict={tensor_image: false_negative_input})
       file_writer.add_summary(summary_str)

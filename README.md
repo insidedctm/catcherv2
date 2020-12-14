@@ -42,3 +42,8 @@ python3 catcher-v2.py --num_epochs 5 --batch_size 200
 
 Amend `num_epochs` and `batch_size` appropriately. NB 200 seems a reasonable value for `batch_size`; on a g4dn.xlarge instance 
 `batch_size=400` resulted in out of memory errors.
+
+### Running Tensorboard
+```bash
+tensorboard --logdir tf_logs/ > /dev/null 2>&1
+```

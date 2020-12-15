@@ -44,8 +44,26 @@ def validate(tf_sess):
 def get_summary_stats(labels, preds):
   labels = np.array(labels)
   preds  = np.array(preds)
-  return {'validation_accuracy': (len(preds) - np.sum(np.square(preds-labels)))/len(preds)}
-  
+  TP = np.sum(np.logical_and(labels == 1, preds == 1))
+  FN = np.sum(np.logical_and(labels == 1, preds == 0))
+  TN = np.sum(np.logical_and(labels == 0, preds == 0))
+  FP = np.sum(np.logical_and(labels == 0, preds == 1))
+  print(f'TP={TP}; FN={FN}; TN={TN}; FP={FP}')
+  accuracy    = (TP+TN)/(TP+TN+FN+FP)
+  sensitivity = TP/(TP+FN)
+  precision   = TP/(TP+FP)
+  specificity = TN/(TN+FP)
+  f1_score    = 2. * sensitivity * precision / (sensitivity + precision)
+
+  summary_stats = {
+       'validation_accuracy': accuracy,
+       'validation_sensitivity': sensitivity,
+       'validation_precision': precision,
+       'validation_specificity': specificity,
+       'validation_f1': f1_score 
+  }
+  print(f"(get_summary_stats): summary_stats={summary_stats}")
+  return summary_stats
 
 if __name__ == '__main__':
   args = parse_args()

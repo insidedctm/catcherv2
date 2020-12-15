@@ -14,6 +14,7 @@ def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--batch_size', default=200, help='', type=int)
   parser.add_argument('--num_epochs', default=1, help='', type=int)
+  parser.add_argument('--restore_path', help='if specified should be a tf.Saver checkpoint file to be loaded')
   return parser.parse_args()
 
 def validate(tf_sess):
@@ -51,7 +52,7 @@ if __name__ == '__main__':
 
   # construct and load model, prepare for training
   model = NaiveTransferLearningModel()
-  model.load_model()
+  model.load_model(args.restore_path)
   train_op = model.get_training_op()
 
   # setup summary
@@ -87,4 +88,8 @@ if __name__ == '__main__':
       # write out summary info
       summary_str = valid_accuracy.eval(feed_dict={valid_accuracy_placeholder: summary_stats['validation_accuracy']})
       file_writer.add_summary(summary_str, batch_index)
+
+      # save checkpoint every epoch
+      model.save(sess, epoch)
+
   file_writer.close()

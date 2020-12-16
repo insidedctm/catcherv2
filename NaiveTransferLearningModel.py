@@ -15,45 +15,60 @@ class SummaryWriter:
 
 class NaiveTransferLearningModel:
   def __init__(self):
-    print("NaiveTransferLearningModel constructor")
     self.tensor_image = None
-    self.y_node = tf.placeholder(tf.int32, shape=[None], name="y")
+    
     self.saver = None
     self.MODEL_NAME = 'NaiveTransferLearner'
 
-  def load_model(self, restore_path=None):
+  def load_model(self, restore_path=None, is_training=True):
+      if restore_path:
+        imported_graph_saver = tf.train.import_meta_graph(f'{restore_path}.meta')
+        with tf.Session() as sess:
+          imported_graph_saver.restore(sess, restore_path)
+          self.y_node = tf.get_default_graph().get_tensor_by_name('y:0')
+          self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
+          self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
+          self.logits = tf.get_default_graph().get_tensor_by_name('logits/BiasAdd:0') 
+          self.loss   = tf.get_default_graph().get_tensor_by_name('loss:0')
+        print('model restored')          
+      else:
+        self.create_model_with_frozen_weights()
+        self.y_node = tf.placeholder(tf.int32, shape=[None], name="y")
+        self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
+        self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
+        flat1 = tf.reshape(self.tensor_output, shape=[-1, 46*54*57])
+        fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
+        self.logits = tf.layers.dense(fc1, 2, name="logits")
+        xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_node)
+        self.loss = tf.reduce_mean(xentropy, name="loss")
+        print('model created')
+
+      if is_training:
+        self.train_vars = tf.get_default_graph().get_collection('trainable_variables', scope='fc1')
+        self.train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
+        self.loss_summary = tf.summary.scalar('Training_loss', self.loss)
+
+      # create Saver
+      self.saver = tf.train.Saver()
+
+
+  def create_model_with_frozen_weights(self):
     GRAPH_PB_PATH = '../tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
     with tf.Session() as sess:
       with gfile.FastGFile(GRAPH_PB_PATH,'rb') as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
         sess.graph.as_default()
-        tf.import_graph_def(graph_def, name='')
-      self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
-      self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
-      flat1 = tf.reshape(self.tensor_output, shape=[-1, 46*54*57])
-      fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
-      self.logits = tf.layers.dense(fc1, 2, name="output")
-      xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_node)
-      self.loss = tf.reduce_mean(xentropy)
-
-      self.train_vars = tf.get_default_graph().get_collection('trainable_variables', scope='fc1')
-      self.train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
-      self.loss_summary = tf.summary.scalar('Training_loss', self.loss)
-
-      # create Saver
-      self.saver = tf.train.Saver()
-
-      if restore_path:
-        # restore weights from checkpoint
-        self.saver.restore(sess, restore_path)
-        print(f'weights restored from {restore_path}')
+        tf.import_graph_def(graph_def, name='')   
  
   def save(self, sess, epoch, save_path='checkpoint/'):
     save_path = self.saver.save(sess, f'{save_path}{self.MODEL_NAME}_{epoch}.ckpt')
     print(f'checkpoint saved to {save_path}')
 
   def get_training_op(self):
-    self.optimizer = tf.train.AdamOptimizer()
-    self.training_op = self.optimizer.minimize(self.loss, var_list=self.train_vars)
+    try:
+      self.training_op = tf.get_default_graph().get_operation_by_name('Adam')
+    except:
+      optimizer = tf.train.AdamOptimizer()
+      self.training_op = optimizer.minimize(self.loss, var_list=self.train_vars)
     return self.training_op

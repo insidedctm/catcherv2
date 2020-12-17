@@ -77,13 +77,16 @@ if __name__ == '__main__':
   file_writer = SummaryWriter.get_file_writer()
 
   # validation summary setup
-  valid_accuracy_placeholder = tf.placeholder(dtype=tf.float32)
-  valid_accuracy = tf.summary.scalar('validation_accuracy', valid_accuracy_placeholder)
+  try:
+    valid_accuracy_placeholder = tf.get_default_graph().get_tensor_by_name('valid_accuracy_ph:0')
+  except:
+    valid_accuracy_placeholder = tf.placeholder(dtype=tf.float32, name='valid_accuracy_ph')
+  valid_accuracy = model.add_summary_scalar('validation_accuracy', valid_accuracy_placeholder)
  
   # image summary setup
-  img_summ_op = tf.summary.image('input_images', model.tensor_image, max_outputs=4)
-  heatmap_summ_op = tf.summary.image('hmap_images', tf.expand_dims(model.tensor_output[:,:,:,1], axis=3), max_outputs=4)
-  paf_summ_op = tf.summary.image('paf_images', tf.expand_dims(model.tensor_output[:,:,:,20], axis=3), max_outputs=4)
+  img_summ_op = model.add_summary_image('input_images', model.tensor_image, max_outputs=4)
+  heatmap_summ_op = model.add_summary_image('hmap_images', tf.expand_dims(model.tensor_output[:,:,:,1], axis=3), max_outputs=4)
+  paf_summ_op = model.add_summary_image('paf_images', tf.expand_dims(model.tensor_output[:,:,:,20], axis=3), max_outputs=4)
  
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode

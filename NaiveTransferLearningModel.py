@@ -46,11 +46,26 @@ class NaiveTransferLearningModel:
       if is_training:
         self.train_vars = tf.get_default_graph().get_collection('trainable_variables', scope='fc1')
         self.train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
-        self.loss_summary = tf.summary.scalar('Training_loss', self.loss)
+        self.loss_summary = self.add_summary_scalar('Training_loss', self.loss)
 
       # create Saver
       self.saver = tf.train.Saver()
 
+  def add_summary_scalar(self, summ_name, value):
+    try:
+      summary_tensor = tf.get_default_graph().get_tensor_by_name(f'{summ_name}:0')
+    except:
+      print(f'{summ_name} summary tensor not found, creating ...')
+      summary_tensor = tf.summary.scalar(summ_name, value)
+    return summary_tensor
+
+  def add_summary_image(self, summ_name, value, max_outputs):
+    try:
+      summary_tensor = tf.get_default_graph().get_tensor_by_name(f'{summ_name}:0')
+    except:
+      print(f'{summ_name} summary tensor not found, creating ...')
+      summary_tensor = tf.summary.image(summ_name, value, max_outputs=max_outputs)
+    return summary_tensor
 
   def create_model_with_frozen_weights(self):
     GRAPH_PB_PATH = '../tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'

@@ -47,6 +47,8 @@ class NaiveTransferLearningModel:
         self.train_vars.extend(tf.get_default_graph().get_collection('trainable_variables', scope='output'))
         self.loss_summary = self.add_summary_scalar('Training_loss', self.loss)
 
+      self.get_training_op()
+
       # create Saver
       self.saver = tf.train.Saver()
 
@@ -84,4 +86,3 @@ class NaiveTransferLearningModel:
     except:
       optimizer = tf.train.AdamOptimizer()
       self.training_op = optimizer.minimize(self.loss, var_list=self.train_vars)
-    return self.training_op

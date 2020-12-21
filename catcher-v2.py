@@ -72,7 +72,6 @@ if __name__ == '__main__':
   # construct and load model, prepare for training
   model = NaiveTransferLearningModel()
   model.load_model(sess, args.restore_path)
-  train_op = model.get_training_op()
 
   # setup summary
   file_writer = SummaryWriter.get_file_writer()
@@ -103,7 +102,7 @@ if __name__ == '__main__':
       if batch_index % 100 == 0:
         summary_str = model.loss_summary.eval(session=sess, feed_dict={model.y_node: labels, model.tensor_image: input}) 
         file_writer.add_summary(summary_str, batch_index)
-      _, loss_val = sess.run([train_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
+      _, loss_val = sess.run([model.training_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
       batch_index = batch_index + 1
     summary_stats = validate(sess)  
     print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')

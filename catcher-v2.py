@@ -91,7 +91,9 @@ if __name__ == '__main__':
  
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode
-  sess.run(init)
+  if not args.restore_path:
+    print("running initializers")
+    sess.run(init)
 
   batch_index = 0
   df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)

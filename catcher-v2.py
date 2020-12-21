@@ -67,10 +67,11 @@ def get_summary_stats(labels, preds):
 
 if __name__ == '__main__':
   args = parse_args()
+  sess = tf.Session()
 
   # construct and load model, prepare for training
   model = NaiveTransferLearningModel()
-  model.load_model(args.restore_path)
+  model.load_model(sess, args.restore_path)
   train_op = model.get_training_op()
 
   # setup summary
@@ -90,27 +91,26 @@ if __name__ == '__main__':
  
   init = tf.global_variables_initializer()
   # see if we can push an input through the mode
-  with tf.Session() as sess:
-    sess.run(init)
-  
-    batch_index = 0
-    df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
-    for epoch in range(args.num_epochs):
+  sess.run(init)
+
+  batch_index = 0
+  df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
+  for epoch in range(args.num_epochs):
  
-      for input, labels in df: 
-        if batch_index % 100 == 0:
-          summary_str = model.loss_summary.eval(feed_dict={model.y_node: labels, model.tensor_image: input}) 
-          file_writer.add_summary(summary_str, batch_index)
-        _, loss_val = sess.run([train_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
-        batch_index = batch_index + 1
-      summary_stats = validate(sess)  
-      print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')
+    for input, labels in df: 
+      if batch_index % 100 == 0:
+        summary_str = model.loss_summary.eval(session=sess, feed_dict={model.y_node: labels, model.tensor_image: input}) 
+        file_writer.add_summary(summary_str, batch_index)
+      _, loss_val = sess.run([train_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
+      batch_index = batch_index + 1
+    summary_stats = validate(sess)  
+    print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')
 
-      # write out summary info
-      summary_str = valid_accuracy.eval(feed_dict={valid_accuracy_placeholder: summary_stats['validation_accuracy']})
-      file_writer.add_summary(summary_str, batch_index)
+    # write out summary info
+    summary_str = valid_accuracy.eval(session=sess, feed_dict={valid_accuracy_placeholder: summary_stats['validation_accuracy']})
+    file_writer.add_summary(summary_str, batch_index)
 
-      # save checkpoint every epoch
-      model.save(sess, epoch)
+    # save checkpoint every epoch
+    model.save(sess, epoch)
 
   file_writer.close()

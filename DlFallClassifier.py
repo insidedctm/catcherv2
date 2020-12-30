@@ -11,6 +11,7 @@ class DlFallClassifier:
     print("DlFallClassifier::__init__")
     self.model = NaiveTransferLearningModel()
     self.model.load_model(sess, model_path, is_training=False)
+    self.sess = sess
 
   def predict(self, sess, frame):
     model = self.model
@@ -21,7 +22,7 @@ class DlFallClassifier:
     return False if y_pred_logits[0][0][0] > y_pred_logits[0][0][1] else True
 
 
-  def decision(self, sess, video, threshold = 6, amber_threshold = 2, visualise_output=False, skip_frames=0):
+  def decision(self, video, threshold = 6, amber_threshold = 2, visualise_output=False, skip_frames=0):
       '''
       Return a fall/nofall decision for entire video sequence. If visualise_output is set to True this will
       also display a screen showing each detection and informative text. Depending on the setting of
@@ -44,7 +45,7 @@ class DlFallClassifier:
           if not ok:
               break
 
-          prediction = self.predict(sess, self.preprocess_frame(frame))
+          prediction = self.predict(self.sess, self.preprocess_frame(frame))
           if prediction:
               self.decision_helper.apply(1)
           else:
@@ -73,4 +74,4 @@ if __name__ == '__main__':
     # test decision method
     for actual in ['fall', 'nofall']:
       video = cv2.VideoCapture(f'/Users/robineast/Downloads/{actual}/p12_1.mp4')
-      print(f'Decision for {actual} video: {clf.decision(sess, video)}')
+      print(f'Decision for {actual} video: {clf.decision(video)}')

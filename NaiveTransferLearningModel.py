@@ -35,7 +35,7 @@ class NaiveTransferLearningModel:
         self.y_node = tf.placeholder(tf.int32, shape=[None], name="y")
         self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
         self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
-        conv1 = tf.layers.conv2d(self.tensor_output, 32, 3)
+        conv1 = tf.layers.conv2d(self.tensor_output, 32, 3, activation=tf.nn.relu)
         print(conv1.shape)
         flat1 = tf.reshape(conv1, shape=[-1, 44*52*32])
         fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")

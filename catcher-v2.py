@@ -85,7 +85,8 @@ if __name__ == '__main__':
  
   # image summary setup
   img_summ_op = model.add_summary_image('input_images', model.tensor_image, max_outputs=4)
-  heatmap_summ_op = model.add_summary_image('hmap_images', tf.expand_dims(model.tensor_output[:,:,:,1], axis=3), max_outputs=4)
+  hmap_tensor = tf.reduce_max(model.tensor_output[:,:,:,:], reduction_indices=[3])
+  heatmap_summ_op = model.add_summary_image('hmap_images', tf.expand_dims(hmap_tensor, axis=3), max_outputs=4)
   paf_summ_op = model.add_summary_image('paf_images', tf.expand_dims(model.tensor_output[:,:,:,20], axis=3), max_outputs=4)
  
   init = tf.global_variables_initializer()

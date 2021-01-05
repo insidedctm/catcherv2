@@ -6,7 +6,7 @@ import numpy as np
 import cv2 
 import aws as aws
 import boto3
-from data_batch import get_dataflow
+from data_batch import get_video_clips_dataflow
 import argparse
 from NaiveTransferLearningModel import NaiveTransferLearningModel, SummaryWriter
 
@@ -18,15 +18,18 @@ def parse_args():
   return parser.parse_args()
 
 def validate(tf_sess):
-  df = get_dataflow("labels_validation.csv", prefix="", shuffle=False)
+  df = get_video_clips_dataflow("labels_validation.csv", prefix="", shuffle=False, depth=3)
   all_labels = []
   all_preds = []
   for input, labels in df:
     all_labels.extend(labels) 
+    feed_dict = {}
+    feed_dict[model.y_node] = labels
+    for ix in range(len(model.input_images)):
+      input_tensor = model.input_images[ix]
+      feed_dict[input_tensor] = input[:,ix,:,:,:]
     y_pred_logits = tf_sess.run([model.logits], 
-                feed_dict= {
-                  model.tensor_image: input
-                })
+                feed_dict= feed_dict)
     preds = [ 0 if x > y else 1 for (x,y) in y_pred_logits[0]]
     all_preds.extend(preds)
 
@@ -34,7 +37,7 @@ def validate(tf_sess):
     
     false_negative_input = input[cond]
     for op in [img_summ_op, heatmap_summ_op, paf_summ_op]:
-      summary_str = sess.run(op, feed_dict={model.tensor_image: false_negative_input})
+      summary_str = sess.run(op, feed_dict={model.tensor_image: false_negative_input[:,0,:,:,:]})
       file_writer.add_summary(summary_str)
    
   summary_stats = get_summary_stats(all_labels, all_preds)
@@ -95,14 +98,21 @@ if __name__ == '__main__':
     sess.run(init)
 
   batch_index = 0
-  df = get_dataflow("../catcher/labels.csv", batch_size=args.batch_size)
+  df = get_video_clips_dataflow("../catcher/labels.csv", batch_size=args.batch_size, depth=3)
   for epoch in range(args.num_epochs):
  
     for input, labels in df: 
       if batch_index % 100 == 0:
-        summary_str = model.loss_summary.eval(session=sess, feed_dict={model.y_node: labels, model.tensor_image: input}) 
-        file_writer.add_summary(summary_str, batch_index)
-      _, loss_val = sess.run([model.training_op, model.loss], feed_dict={model.y_node: labels, model.tensor_image: input})
+        tensor_image = input[:,0,:,:,:]
+        #summary_str = model.loss_summary.eval(session=sess, feed_dict={model.y_node: labels, model.tensor_image: tensor_image}) 
+        #file_writer.add_summary(summary_str, batch_index)
+      # construct feed dict and pass into training step
+      feed_dict = {}
+      feed_dict[model.y_node] = labels
+      for ix in range(len(model.input_images)):
+        input_tensor = model.input_images[ix]
+        feed_dict[input_tensor] = input[:,ix,:,:,:]
+      _, loss_val = sess.run([model.training_op, model.loss], feed_dict=feed_dict)
       batch_index = batch_index + 1
     summary_stats = validate(sess)  
     print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')

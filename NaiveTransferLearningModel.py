@@ -22,19 +22,21 @@ class NaiveTransferLearningModel:
 
   def load_model(self, sess, restore_path=None, is_training=True):
       if restore_path:
+        sub_graph_name = 'MyImage1'
         imported_graph_saver = tf.train.import_meta_graph(f'{restore_path}.meta')
         imported_graph_saver.restore(sess, restore_path)
         self.y_node = tf.get_default_graph().get_tensor_by_name('y:0')
-        self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
-        self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
+        self.tensor_image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
+        self.tensor_output = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0')
         self.logits = tf.get_default_graph().get_tensor_by_name('logits/BiasAdd:0') 
         self.loss   = tf.get_default_graph().get_tensor_by_name('loss:0')
         print('model restored')          
       else:
-        self.create_model_with_frozen_weights(sess)
+        sub_graph_name = 'MyImage1'
+        self.create_model_with_frozen_weights(sess, sub_graph_name=sub_graph_name)
         self.y_node = tf.placeholder(tf.int32, shape=[None], name="y")
-        self.tensor_image = tf.get_default_graph().get_tensor_by_name('image:0')
-        self.tensor_output = tf.get_default_graph().get_tensor_by_name('Openpose/concat_stage7:0')
+        self.tensor_image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
+        self.tensor_output = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0')
         flat1 = tf.reshape(self.tensor_output, shape=[-1, 46*54*57])
         fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
         self.logits = tf.layers.dense(fc1, 2, name="logits")
@@ -68,13 +70,13 @@ class NaiveTransferLearningModel:
       summary_tensor = tf.summary.image(summ_name, value, max_outputs=max_outputs)
     return summary_tensor
 
-  def create_model_with_frozen_weights(self, sess):
+  def create_model_with_frozen_weights(self, sess, sub_graph_name):
     GRAPH_PB_PATH = '../tf-pose-estimation/models/graph/mobilenet_thin/graph_opt.pb'
     with gfile.FastGFile(GRAPH_PB_PATH,'rb') as f:
       graph_def = tf.GraphDef()
       graph_def.ParseFromString(f.read())
       sess.graph.as_default()
-      tf.import_graph_def(graph_def, name='')   
+      tf.import_graph_def(graph_def, name=sub_graph_name)   
  
   def save(self, sess, epoch, save_path='checkpoint/'):
     save_path = self.saver.save(sess, f'{save_path}{self.MODEL_NAME}_{epoch}.ckpt')

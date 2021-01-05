@@ -32,12 +32,25 @@ class NaiveTransferLearningModel:
         self.loss   = tf.get_default_graph().get_tensor_by_name('loss:0')
         print('model restored')          
       else:
-        sub_graph_name = 'MyImage1'
-        self.create_model_with_frozen_weights(sess, sub_graph_name=sub_graph_name)
+        depth=3
+        self.input_images = []
+        self.openpose_outputs = []
+        for ix in range(depth):
+          sub_graph_name = f'MyImage{ix}'
+          self.create_model_with_frozen_weights(sess, sub_graph_name=sub_graph_name)
+          image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
+          self.input_images.append(image)
+          self.openpose_outputs.append(tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0'))
+        self.tensor_image = self.input_images[0]
+        self.tensor_output = self.openpose_outputs[0]
         self.y_node = tf.placeholder(tf.int32, shape=[None], name="y")
-        self.tensor_image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
-        self.tensor_output = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0')
-        flat1 = tf.reshape(self.tensor_output, shape=[-1, 46*54*57])
+        for inputs in self.input_images:
+          print(inputs.shape)
+        images = tf.concat([tf.expand_dims(inp, 1) for inp in self.input_images], 1)
+        print(f'concatenated shape: {images.shape}')
+        conv3d1 = tf.layers.conv3d(images, 32, 3)
+        print(f'conv3d.shape: {conv3d1.shape}')
+        flat1 = tf.reshape(conv3d1, shape=[-1, 46*54*32])
         fc1 = tf.layers.dense(flat1, 64, activation=tf.nn.relu, name="fc1")
         self.logits = tf.layers.dense(fc1, 2, name="logits")
         xentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_node)

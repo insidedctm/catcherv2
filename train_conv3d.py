@@ -18,8 +18,8 @@ def parse_args():
   parser.add_argument('--experiment_label', default=None, help='Identifying text to be added to checkpoint filename')
   return parser.parse_args()
 
-def validate(tf_sess):
-  df = get_video_clips_dataflow("labels_validation.csv", prefix="", shuffle=False, depth=3)
+def validate(tf_sess, batch_size=50):
+  df = get_video_clips_dataflow("labels_validation.csv", batch_size=50, prefix="", shuffle=False, depth=3)
   all_labels = []
   all_preds = []
   for input, labels in df:
@@ -103,19 +103,20 @@ if __name__ == '__main__':
   for epoch in range(args.num_epochs):
  
     for input, labels in df: 
-      if batch_index % 100 == 0:
-        tensor_image = input[:,0,:,:,:]
-        #summary_str = model.loss_summary.eval(session=sess, feed_dict={model.y_node: labels, model.tensor_image: tensor_image}) 
-        #file_writer.add_summary(summary_str, batch_index)
+
       # construct feed dict and pass into training step
       feed_dict = {}
       feed_dict[model.y_node] = labels
       for ix in range(len(model.input_images)):
         input_tensor = model.input_images[ix]
         feed_dict[input_tensor] = input[:,ix,:,:,:]
+      if batch_index % 100 == 0:
+        tensor_image = input[:,0,:,:,:]
+        summary_str = model.loss_summary.eval(session=sess, feed_dict=feed_dict) 
+        file_writer.add_summary(summary_str, batch_index)
       _, loss_val = sess.run([model.training_op, model.loss], feed_dict=feed_dict)
       batch_index = batch_index + 1
-    summary_stats = validate(sess)  
+    summary_stats = validate(sess, batch_size=args.batch_size)  
     print(f'accuracy: {summary_stats["validation_accuracy"]:0.2}')
 
     # write out summary info

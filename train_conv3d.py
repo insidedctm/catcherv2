@@ -45,6 +45,24 @@ def validate(tf_sess, batch_size=50):
   
   return summary_stats
 
+def get_epoch_from_checkpoint_path(path):
+  """Extracts the epoch number encoded in the checkpoint path.
+  The checkpoint path is expected to be <checkpointidentifier>_<epoch>.ckpt.    
+  Arguments:
+      path : Checkpoint path, string
+  Returns:
+      The epoch number (int) if found, otherwise 0
+  """  
+  if not path:
+    return 0
+  try:
+    prefix = path.split('.')[:-1][-1]
+    epoch = prefix.split('_')[-1]
+    return int(epoch)
+  except:
+    print(f'WARNING: unable to extract epoch from {path}; expected path format is <identifier>_<epoch>.ckpt')
+    return 0
+
 def get_summary_stats(labels, preds):
   labels = np.array(labels)
   preds  = np.array(preds)
@@ -100,8 +118,13 @@ if __name__ == '__main__':
 
   batch_index = 0
   df = get_video_clips_dataflow("../catcher/labels.csv", batch_size=args.batch_size, depth=3)
-  for epoch in range(args.num_epochs):
- 
+
+  checkpoint_epoch = get_epoch_from_checkpoint_path(args.restore_path)
+  epoch_start = checkpoint_epoch + 1
+  epoch_end   = args.num_epochs + checkpoint_epoch
+  print(f"Running for epochs starting {epoch_start} and end {epoch_end}")
+  for epoch in range(epoch_start, epoch_end+1):
+    print(f'Epoch {epoch}') 
     for input, labels in df: 
 
       # construct feed dict and pass into training step

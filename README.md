@@ -34,13 +34,23 @@ cd catcherv2
 ```
 
 ## Training
-To run training:
+### 3D Convolution Model
+To run training for the 3D Convolution model (requires something with more than 16GB memory)
 
 ```bash
-python3 catcher-v2.py --num_epochs 5 --batch_size 200
+python3 train_conv3d.py --num_epochs 5 --batch_size 20
 ```
 
-Amend `num_epochs` and `batch_size` appropriately. NB 200 seems a reasonable value for `batch_size`; on a g4dn.xlarge instance 
+Amend `num_epochs` and `batch_size` appropriately. NB 20  for `batch_size` works on machines with 32GB/64GB
+
+### Naive Transfer Learning Model
+To run training for the Naive Transfer Learning model
+
+```bash
+python3 catcher-v2.py --num_epochs 5 --batch_size 150
+```
+
+Amend `num_epochs` and `batch_size` appropriately. NB 150 seems a reasonable value for `batch_size`; on a g4dn.xlarge instance 
 `batch_size=400` resulted in out of memory errors.
 
 ### Running Tensorboard

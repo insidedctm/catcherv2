@@ -11,20 +11,24 @@ class Conv3DModel:
     self.MODEL_NAME = 'CatcherConv3D'
 
   def load_model(self, sess, restore_path=None, is_training=True):
+      depth=3
+      self.input_images = []
+      self.openpose_outputs = []
       if restore_path:
-        sub_graph_name = 'MyImage1'
         imported_graph_saver = tf.train.import_meta_graph(f'{restore_path}.meta')
         imported_graph_saver.restore(sess, restore_path)
+        for ix in range(depth):
+          sub_graph_name = f'MyImage{ix}'
+          image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
+          self.input_images.append(image)
+          self.openpose_outputs.append(tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0'))
         self.y_node = tf.get_default_graph().get_tensor_by_name('y:0')
-        self.tensor_image = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/image:0')
-        self.tensor_output = tf.get_default_graph().get_tensor_by_name(f'{sub_graph_name}/Openpose/concat_stage7:0')
+        self.tensor_image = tf.get_default_graph().get_tensor_by_name(f'MyImage0/image:0')
+        self.tensor_output = tf.get_default_graph().get_tensor_by_name(f'MyImage0/Openpose/concat_stage7:0')
         self.logits = tf.get_default_graph().get_tensor_by_name('logits/BiasAdd:0') 
         self.loss   = tf.get_default_graph().get_tensor_by_name('loss:0')
         print('model restored')          
       else:
-        depth=3
-        self.input_images = []
-        self.openpose_outputs = []
         for ix in range(depth):
           sub_graph_name = f'MyImage{ix}'
           self.create_model_with_frozen_weights(sess, sub_graph_name=sub_graph_name)

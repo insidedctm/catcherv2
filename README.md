@@ -34,16 +34,38 @@ cd catcherv2
 ```
 
 ## Training
-To run training:
+### 3D Convolution Model
+To run training for the 3D Convolution model (requires something with more than 16GB memory)
 
 ```bash
-python3 catcher-v2.py --num_epochs 5 --batch_size 200
+python3 train_conv3d.py --num_epochs 5 --batch_size 20
 ```
 
-Amend `num_epochs` and `batch_size` appropriately. NB 200 seems a reasonable value for `batch_size`; on a g4dn.xlarge instance 
+Amend `num_epochs` and `batch_size` appropriately. NB 20  for `batch_size` works on machines with 32GB/64GB
+
+### Naive Transfer Learning Model
+To run training for the Naive Transfer Learning model
+
+```bash
+python3 catcher-v2.py --num_epochs 5 --batch_size 150
+```
+
+Amend `num_epochs` and `batch_size` appropriately. NB 150 seems a reasonable value for `batch_size`; on a g4dn.xlarge instance 
 `batch_size=400` resulted in out of memory errors.
 
 ### Running Tensorboard
 ```bash
 tensorboard --logdir tf_logs/ > /dev/null 2>&1 &
+```
+
+## Evaluation
+NB ensure you have fall/nofall directories setup locally with the contents of the fall/nofall folders in catcher-videos in S3.
+
+Run evaluation for a model like this
+```bash
+python evaluate_classifier <video-directory> <model> --threshold=n
+```
+e.g. If fall/nofall videos are in ~/Downloads and we want the Conv3D model with an (optional) threshold of 3
+```bash
+python evaluate_classifier.py ~/Downloads Conv3D --threshold=3
 ```

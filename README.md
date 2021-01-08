@@ -57,3 +57,15 @@ Amend `num_epochs` and `batch_size` appropriately. NB 150 seems a reasonable val
 ```bash
 tensorboard --logdir tf_logs/ > /dev/null 2>&1 &
 ```
+
+## Evaluation
+NB ensure you have fall/nofall directories setup locally with the contents of the fall/nofall folders in catcher-videos in S3.
+
+Run evaluation for a model like this
+```bash
+python evaluate_classifier <video-directory> <model> --threshold=n
+```
+e.g. If fall/nofall videos are in ~/Downloads and we want the Conv3D model with an (optional) threshold of 3
+```bash
+python evaluate_classifier.py ~/Downloads Conv3D --threshold=3
+```

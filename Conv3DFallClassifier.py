@@ -7,11 +7,12 @@ import time
 import cv2
 
 class Conv3DFallClassifier:
-  def __init__(self, sess, model_path):
+  def __init__(self, sess, model_path, threshold):
     print("Conv3DFallClassifier::__init__")
     self.model = Conv3DModel()
     self.model.load_model(sess, model_path, is_training=False)
     self.sess = sess
+    self.threshold = threshold
 
   def predict(self, sess, frame):
     fifo = self.fifo
@@ -48,7 +49,7 @@ class Conv3DFallClassifier:
       # setup new buffer to hold video frames
       self.fifo = FifoClipBuffer(buffer_size=3)
 
-      self.decision_helper = DecisionHelper(amber_threshold=amber_threshold, red_threshold=threshold)
+      self.decision_helper = DecisionHelper(amber_threshold=amber_threshold, red_threshold=self.threshold)
       fall_detected = False
 
       while True:

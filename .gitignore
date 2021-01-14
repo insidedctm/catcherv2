@@ -1,7 +1,12 @@
 __pycache__/
-
+.vscode/
+.DS_Store
 
 tf_logs/**/events*
 raw/*.mp4
 raw/*.mov
 raw/*.MOV
+
+Results.csv
+upfall/Results.csv
+upfall_data/

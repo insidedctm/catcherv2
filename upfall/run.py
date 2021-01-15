@@ -39,7 +39,7 @@ def main(args):
       print(f'Processing {filename}')
       if not args.listonly:
         download_and_extract(filename)
-        result = process_files(sess, clf)
+        result = process_files(sess, clf, display_image=args.display_image)
         print("Result is {}".format(result))
         results_file.write(f'{filename},{result}\n')
         remove_files()
@@ -66,7 +66,7 @@ def list_dataset(prefix='UPFall/'):
             files.append(obj.key)
     return files
 
-def process_files(sess, clf, threshold=6):
+def process_files(sess, clf, threshold=6, display_image=False):
   # setup buffer to receive frames
   clf.fifo = FifoClipBuffer(buffer_size=3)
 
@@ -87,8 +87,9 @@ def process_files(sess, clf, threshold=6):
         # No fall detected in this frame - signal this to the decision helper
         decision_helper.apply(0)
 
-    cv.imshow('image',frame)
-    cv.waitKey(1)
+    if display_image:
+      cv.imshow('image',frame)
+      cv.waitKey(1)
   cv.destroyAllWindows()
   return decision_helper.is_fall_detected    
 
@@ -118,6 +119,7 @@ def parse_args():
   parser.add_argument('--activity', nargs='+', type=int, help='space-separated list of activities (1-11), default=all')
   parser.add_argument('--trial', nargs='+', type=int, help='space-separated list of trials (1-3), default=all')
   parser.add_argument('--camera', nargs='+', type=int, help='space-separated list of cameras (1-2), default=all')
+  parser.add_argument('--display_image', action='store_true', help='display each frame after it has been processed, default=False')
 
   args = parser.parse_args()
   args.subject = list(range(1,18)) if args.subject is None else args.subject

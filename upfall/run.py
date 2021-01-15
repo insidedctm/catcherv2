@@ -19,6 +19,9 @@ BUCKET = 'datasets.xense.co.uk'
 KEY_PREFIX = 'UPFall/'
 DOWNLOAD_DIR = 'upfall_data'
 
+# The following frames are corrupted and should not be processed
+skip_frames = ["upfall_data/2018-07-06T12_03_04.483526.png"]
+
 def main(args):
   print(f"Using args: {args}")
   results_filename = 'Results.csv'
@@ -73,7 +76,9 @@ def process_files(sess, clf, threshold=6):
   decision_helper = DecisionHelper(amber_threshold=amber_threshold, red_threshold=threshold)
 
   for f in sorted(glob.glob("{}/*.png".format(DOWNLOAD_DIR))):
-    print(f"processing {f}")
+    if f in skip_frames:
+      print(f"skipping {f}")
+      continue
     frame = cv.imread(f, cv.IMREAD_COLOR)
     prediction = clf.predict(clf.sess, clf.preprocess_frame(frame))
     if prediction:
